@@ -1,0 +1,8 @@
+#!/bin/sh
+# this is /etc/sv/cuckoo/log/run (needs +x)
+set -e
+
+LOG=/var/log/runit/cuckoo.log
+
+test -d "$LOG" || mkdir -p -m2750 "$LOG" && chown root:adm "$LOG"
+exec svlogd -tt "$LOG"

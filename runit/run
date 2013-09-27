@@ -1,0 +1,9 @@
+#!/bin/sh
+# this is /etc/sv/cuckoo/run (needs +x)
+exec 2>&1
+
+cd /home/cuckoo/
+ulimit -n 10000
+
+LANG=C LC_ALL=C \
+exec chpst -u cuckoo:cuckoo -U cuckoo:cuckoo python ./cuckoo.py
