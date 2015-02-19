@@ -42,15 +42,16 @@ def dns_serv(args):
 
         udps.sendto(rp.build(), addr)
 
-def open_port(addr, port):
+def open_port(addr, port, proto="tcp"):
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM if proto == "udp" else socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((addr, port))
-        s.listen(5)
+        if proto != "udp": s.listen(5)
         return s
     except:
-        pass
+        import traceback
+        traceback.print_exc()
 
     return None
 
@@ -64,7 +65,10 @@ def port_sink(args):
     listener = open_port(args.bind, 1)
     listener_fd = listener.fileno()
 
-    fdset = set([listener_fd,])
+    listener_udp = open_port(args.bind, 1, proto="udp")
+    listener_udp_fd = listener_udp.fileno()
+
+    fdset = set([listener_fd, listener_udp_fd])
     conns = {}
 
     def closesock(fd, sock):
@@ -94,13 +98,23 @@ def port_sink(args):
                 log.debug("Port sink got connection from %s to %s", str(addr), str((dip, dport)))
                 conns[sock.fileno()] = (sock, dip, dport)
 
+            elif fd == listener_udp_fd:
+                try: data, addr = listener_udp.recvfrom(BUFSIZ)
+                except Exception as e:
+                    log.debug("Exception on UDP sock:", str(e))
+                else:
+                    sip, sport = addr
+                    log.debug("RECV %s:%u -> unknown_udp: %s", sip, sport, repr(data))
+
             elif fd in conns:
                 sock, dip, dport = conns[fd]
+                sip, sport = sock.getpeername()
+
                 try: data = sock.recv(BUFSIZ)
                 except:
                     closesock(fd, sock)
                 else:
-                    log.debug("RECV %s:%u: %s", dip, dport, repr(data))
+                    log.debug("RECV %s:%u -> %s:%u: %s", sip, sport, dip, dport, repr(data))
                     if not data:
                         closesock(fd, sock)
                     elif "/ncsi.txt HTTP/1." in data:
