@@ -32,7 +32,10 @@ def dns_serv(args):
         rp.qd = p[DNSQR]
 
         if p.opcode == 0:
-            answer_ip = randip()
+            if p.qd[0].qname == "dns.msftncsi.com":
+                answer_ip = "131.107.255.255"
+            else:
+                answer_ip = randip()
             rp.an = DNSRR(rrname=p.qd[0].qname, ttl=60, rdlen=4, rdata=answer_ip)
             log.debug("Responding to {0} with {1}.".format(p.qd[0].qname, answer_ip))
         else:
